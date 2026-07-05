@@ -40,6 +40,14 @@ module ::AuthNextGroupNormalizer
 		groups + [{ id: synthesized_group_name, name: synthesized_group_name }]
 	end
 
+	def sync_username_from_primary_character(auth_result)
+		primary_character_name = auth_result.name.to_s.strip
+		return if primary_character_name.blank?
+
+		auth_result.username = primary_character_name
+		auth_result.overrides_username = true
+	end
+
 	def ensure_group_association(provider_name, normalized_name)
 		group = Group.find_by(name: normalized_name)
 		return unless group
@@ -70,6 +78,8 @@ after_initialize do
 		next unless SiteSetting.auth_next_group_normalizer_enabled
 		next unless authenticator&.name == "oauth2_basic"
 		next if auth_result.blank? || auth_result.failed?
+
+		AuthNextGroupNormalizer.sync_username_from_primary_character(auth_result)
 		next if auth_result.associated_groups.blank?
 
 		provider_name = auth_result.extra_data&.[](:provider) || authenticator.name

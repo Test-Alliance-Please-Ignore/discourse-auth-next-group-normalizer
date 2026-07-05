@@ -17,6 +17,7 @@ Behavior:
 - if a Discourse group already exists with the same normalized name, automatically links it
   to the matching `oauth2_basic` associated group
 - grants `admin` to users who land in configured admin groups
+- sets the Discourse username from the OAuth `name` field
 
 ## Install
 
@@ -105,3 +106,6 @@ Notes:
 - admin is granted automatically when a user logs in via OAuth with one of those normalized groups
 - admin is also granted when the user is automatically added to one of those groups
 - this plugin does not automatically revoke admin when a user later leaves such a group
+- username is derived from the OAuth `name` field, which should be the Auth Next primary
+  character name in your setup
+- existing users are renamed on OAuth login because the plugin sets `overrides_username = true`
