@@ -59,6 +59,20 @@ module ::AuthNextGroupNormalizer
 		value == true || value.to_s == "true"
 	end
 
+	def associated_account_extra_data(auth_result)
+		auth_data = auth_result.extra_data || {}
+		provider_name = extra_data_value(auth_data, "provider")
+		provider_uid = extra_data_value(auth_data, "uid")
+		return {} if provider_name.blank? || provider_uid.blank?
+
+		association = UserAssociatedAccount.find_by(provider_name: provider_name, provider_uid: provider_uid)
+		association&.extra || {}
+	end
+
+	def oauth_user_data(auth_result)
+		associated_account_extra_data(auth_result)
+	end
+
 	def primary_character_from_extra_data(extra_data)
 		characters = Array(extra_data_value(extra_data, "characters")).compact
 		return nil if characters.blank?
@@ -71,7 +85,7 @@ module ::AuthNextGroupNormalizer
 	end
 
 	def primary_character_name(auth_result)
-		character = primary_character_from_extra_data(auth_result.extra_data)
+		character = primary_character_from_extra_data(oauth_user_data(auth_result))
 		character_name = extra_data_value(character, "characterName").to_s.strip
 		return character_name if character_name.present?
 
