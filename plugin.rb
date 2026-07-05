@@ -49,14 +49,49 @@ module ::AuthNextGroupNormalizer
 		groups + [{ id: synthesized_group_name, name: synthesized_group_name }]
 	end
 
+	def extra_data_value(data, key)
+		return nil if data.blank?
+
+		data[key] || data[key.to_s] || data[key.to_sym]
+	end
+
+	def truthy?(value)
+		value == true || value.to_s == "true"
+	end
+
+	def primary_character_from_extra_data(extra_data)
+		characters = Array(extra_data_value(extra_data, "characters")).compact
+		return nil if characters.blank?
+
+		main_character_id = extra_data_value(extra_data, "mainCharacterId").to_s
+
+		characters.find { |character| truthy?(extra_data_value(character, "isPrimary")) } ||
+			characters.find { |character| extra_data_value(character, "characterId").to_s == main_character_id } ||
+			characters.first
+	end
+
+	def primary_character_name(auth_result)
+		character = primary_character_from_extra_data(auth_result.extra_data)
+		character_name = extra_data_value(character, "characterName").to_s.strip
+		return character_name if character_name.present?
+
+		auth_result.name.to_s.strip
+	end
+
 	def sync_identity_from_primary_character(auth_result)
-		primary_character_name = auth_result.name.to_s.strip
+		primary_character_name = primary_character_name(auth_result)
 		return if primary_character_name.blank?
 
 		auth_result.name = primary_character_name
 		auth_result.overrides_name = true
-		auth_result.username = primary_character_name
-		auth_result.overrides_username = true
+
+		return unless auth_result.user.blank?
+
+		if auth_result.username.to_s.strip.blank?
+			auth_result.username = primary_character_name
+		end
+
+		auth_result.overrides_username = auth_result.username.to_s.strip.present?
 	end
 
 	def ensure_group_association(provider_name, normalized_name)
@@ -92,6 +127,9 @@ module ::AuthNextGroupNormalizer
 end
 
 after_initialize do
+	DiscoursePluginRegistry.register_oauth2_basic_additional_json_path("mainCharacterId", self)
+	DiscoursePluginRegistry.register_oauth2_basic_additional_json_path("characters", self)
+
 	DiscourseEvent.on(:after_auth) do |authenticator, auth_result, _session, _cookies, _request|
 		next unless SiteSetting.auth_next_group_normalizer_enabled
 		next unless authenticator&.name == "oauth2_basic"
