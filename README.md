@@ -13,6 +13,8 @@ Behavior:
 - lowercases the name
 - replaces runs of whitespace with `-`
 - collapses repeated `-`
+- if a Discourse group already exists with the same normalized name, automatically links it
+  to the matching `oauth2_basic` associated group
 
 ## Install
 
@@ -66,6 +68,12 @@ oauth2_json_groups_path = groups
 
 This plugin runs on the `after_auth` hook and rewrites `auth_result.associated_groups`
 before Discourse applies group sync.
+
+If a Discourse group already exists with the normalized name, the plugin also ensures the
+group is associated with the matching `oauth2_basic` provider group, so users can be added
+without a separate Rails-console step.
+
+It does not create Discourse groups automatically.
 
 ## Site setting
 

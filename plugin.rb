@@ -21,6 +21,23 @@ module ::AuthNextGroupNormalizer
 
 		{ id: normalized_name, name: normalized_name }
 	end
+
+	def ensure_group_association(provider_name, normalized_name)
+		group = Group.find_by(name: normalized_name)
+		return unless group
+
+		associated_group =
+			begin
+				AssociatedGroup.find_or_create_by!(provider_name: provider_name, provider_id: normalized_name) do |record|
+					record.name = normalized_name
+					record.last_used = Time.zone.now
+				end
+			rescue ActiveRecord::RecordNotUnique
+				retry
+			end
+
+		GroupAssociatedGroup.find_or_create_by!(group: group, associated_group: associated_group)
+	end
 end
 
 after_initialize do
@@ -30,9 +47,16 @@ after_initialize do
 		next if auth_result.blank? || auth_result.failed?
 		next if auth_result.associated_groups.blank?
 
-		auth_result.associated_groups =
+		provider_name = auth_result.extra_data&.[](:provider) || authenticator.name
+		normalized_groups =
 			auth_result.associated_groups.filter_map do |group|
 				AuthNextGroupNormalizer.normalize_associated_group(group)
-			end.uniq
+			end.uniq { |group| group[:id] }
+
+		normalized_groups.each do |group|
+			AuthNextGroupNormalizer.ensure_group_association(provider_name, group[:id])
+		end
+
+		auth_result.associated_groups = normalized_groups
 	end
 end
