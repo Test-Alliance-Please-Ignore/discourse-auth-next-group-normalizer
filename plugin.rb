@@ -14,6 +14,15 @@ module ::AuthNextGroupNormalizer
 		name.to_s.strip.downcase.gsub(/\s+/, "-").gsub(/-+/, "-")
 	end
 
+	def admin_group_names
+		SiteSetting.auth_next_group_normalizer_admin_groups
+			.to_s
+			.split("|")
+			.map { |name| normalize_group_name(name) }
+			.reject(&:blank?)
+			.uniq
+	end
+
 	def normalize_associated_group(group)
 		source_name = group[:name] || group["name"] || group[:id] || group["id"]
 		normalized_name = normalize_group_name(source_name)
@@ -38,6 +47,13 @@ module ::AuthNextGroupNormalizer
 
 		GroupAssociatedGroup.find_or_create_by!(group: group, associated_group: associated_group)
 	end
+
+	def grant_admin_if_needed(user, normalized_group_name)
+		return if user.blank? || user.admin?
+		return unless admin_group_names.include?(normalized_group_name)
+
+		user.update!(admin: true)
+	end
 end
 
 after_initialize do
@@ -55,8 +71,16 @@ after_initialize do
 
 		normalized_groups.each do |group|
 			AuthNextGroupNormalizer.ensure_group_association(provider_name, group[:id])
+			AuthNextGroupNormalizer.grant_admin_if_needed(auth_result.user, group[:id])
 		end
 
 		auth_result.associated_groups = normalized_groups
+	end
+
+	DiscourseEvent.on(:user_added_to_group) do |user, group, automatic:|
+		next unless SiteSetting.auth_next_group_normalizer_enabled
+		next unless automatic
+
+		AuthNextGroupNormalizer.grant_admin_if_needed(user, group.name)
 	end
 end

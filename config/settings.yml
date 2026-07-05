@@ -2,3 +2,6 @@ plugins:
   auth_next_group_normalizer_enabled:
     default: true
     client: false
+  auth_next_group_normalizer_admin_groups:
+    default: "forum-admins|server-admins"
+    client: false

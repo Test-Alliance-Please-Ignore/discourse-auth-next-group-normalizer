@@ -1,3 +1,4 @@
 en:
   site_settings:
     auth_next_group_normalizer_enabled: "Enable Auth Next OAuth2 group name normalization"
+    auth_next_group_normalizer_admin_groups: "Normalized Discourse group slugs that should grant admin on OAuth/group sync, separated by |"

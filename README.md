@@ -15,6 +15,7 @@ Behavior:
 - collapses repeated `-`
 - if a Discourse group already exists with the same normalized name, automatically links it
   to the matching `oauth2_basic` associated group
+- grants `admin` to users who land in configured admin groups
 
 ## Install
 
@@ -78,5 +79,24 @@ It does not create Discourse groups automatically.
 ## Site setting
 
 - `auth_next_group_normalizer_enabled`
+- `auth_next_group_normalizer_admin_groups`
 
 Enabled by default.
+
+`auth_next_group_normalizer_admin_groups` defaults to:
+
+```text
+forum-admins|server-admins
+```
+
+Use `|` to configure more than one group slug:
+
+```text
+forum-admins|another-admin-group
+```
+
+Notes:
+
+- admin is granted automatically when a user logs in via OAuth with one of those normalized groups
+- admin is also granted when the user is automatically added to one of those groups
+- this plugin does not automatically revoke admin when a user later leaves such a group
