@@ -1,0 +1,4 @@
+plugins:
+  auth_next_group_normalizer_enabled:
+    default: true
+    client: false

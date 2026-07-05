@@ -1,0 +1,74 @@
+# auth-next-group-normalizer
+
+Discourse plugin that normalizes `discourse-oauth2-basic` group sync values from Auth Next.
+
+It rewrites OAuth-associated group names like:
+
+- `Group Name` -> `group-name`
+- `First Second` -> `first-second`
+
+Behavior:
+
+- trims leading/trailing whitespace
+- lowercases the name
+- replaces runs of whitespace with `-`
+- collapses repeated `-`
+
+## Install
+
+This directory is already structured as a Discourse plugin repository root.
+
+If you want to use it from `app.yml`, publish the contents of this directory as its own git
+repository, then add that repository to your Discourse container config.
+
+If you want to install it manually instead, copy this directory into your Discourse installation as:
+
+```text
+plugins/auth-next-group-normalizer
+```
+
+Then rebuild/restart Discourse.
+
+## Install via `app.yml`
+
+Example:
+
+```yml
+hooks:
+  after_code:
+    - exec:
+        cd: $home/plugins
+        cmd:
+          - git clone https://your.git.host/auth-next-group-normalizer.git
+```
+
+Then rebuild:
+
+```bash
+cd /var/discourse
+./launcher rebuild app
+```
+
+Important:
+
+- Discourse clones plugin repositories into `$home/plugins`
+- the repository root itself must contain `plugin.rb`
+- you cannot point `app.yml` at a subdirectory of a larger repository
+- if you want to use this plugin through `app.yml`, this directory must be the root of its own repo
+
+## Usage
+
+Keep your normal `discourse-oauth2-basic` setup, including:
+
+```text
+oauth2_json_groups_path = groups
+```
+
+This plugin runs on the `after_auth` hook and rewrites `auth_result.associated_groups`
+before Discourse applies group sync.
+
+## Site setting
+
+- `auth_next_group_normalizer_enabled`
+
+Enabled by default.

@@ -1,0 +1,3 @@
+en:
+  site_settings:
+    auth_next_group_normalizer_enabled: "Enable Auth Next OAuth2 group name normalization"
