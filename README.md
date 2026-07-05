@@ -13,6 +13,7 @@ Behavior:
 - lowercases the name
 - replaces runs of whitespace with `-`
 - collapses repeated `-`
+- synthesizes `test-alliance` whenever the normalized OAuth group list is non-empty
 - if a Discourse group already exists with the same normalized name, automatically links it
   to the matching `oauth2_basic` associated group
 - grants `admin` to users who land in configured admin groups
@@ -75,6 +76,10 @@ group is associated with the matching `oauth2_basic` provider group, so users ca
 without a separate Rails-console step.
 
 It does not create Discourse groups automatically.
+
+If the OAuth provider returns no groups for a user, the synthesized `test-alliance` group is
+not added, and Discourse group sync will remove the associated membership on the next OAuth
+login.
 
 ## Site setting
 

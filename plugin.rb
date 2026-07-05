@@ -31,6 +31,15 @@ module ::AuthNextGroupNormalizer
 		{ id: normalized_name, name: normalized_name }
 	end
 
+	def add_synthesized_groups(groups)
+		return groups if groups.blank?
+
+		synthesized_group_name = "test-alliance"
+		return groups if groups.any? { |group| group[:id] == synthesized_group_name }
+
+		groups + [{ id: synthesized_group_name, name: synthesized_group_name }]
+	end
+
 	def ensure_group_association(provider_name, normalized_name)
 		group = Group.find_by(name: normalized_name)
 		return unless group
@@ -68,6 +77,8 @@ after_initialize do
 			auth_result.associated_groups.filter_map do |group|
 				AuthNextGroupNormalizer.normalize_associated_group(group)
 			end.uniq { |group| group[:id] }
+
+		normalized_groups = AuthNextGroupNormalizer.add_synthesized_groups(normalized_groups)
 
 		normalized_groups.each do |group|
 			AuthNextGroupNormalizer.ensure_group_association(provider_name, group[:id])
