@@ -17,6 +17,7 @@ Behavior:
 - if a Discourse group already exists with the same normalized name, automatically links it
   to the matching `oauth2_basic` associated group
 - grants `admin` to users who land in configured admin groups
+- grants `moderator` to users who land in configured moderator groups
 - sets the Discourse display name and username from the OAuth `name` field
 
 ## Install
@@ -86,6 +87,7 @@ login.
 
 - `auth_next_group_normalizer_enabled`
 - `auth_next_group_normalizer_admin_groups`
+- `auth_next_group_normalizer_moderator_groups`
 
 Enabled by default.
 
@@ -101,11 +103,20 @@ Use `|` to configure more than one group slug:
 forum-admins|another-admin-group
 ```
 
+`auth_next_group_normalizer_moderator_groups` defaults to:
+
+```text
+forum-mods
+```
+
 Notes:
 
 - admin is granted automatically when a user logs in via OAuth with one of those normalized groups
 - admin is also granted when the user is automatically added to one of those groups
+- moderator is granted automatically when a user logs in via OAuth with one of those normalized groups
+- moderator is also granted when the user is automatically added to one of those groups
 - this plugin does not automatically revoke admin when a user later leaves such a group
+- this plugin does not automatically revoke moderator when a user later leaves such a group
 - display name is set from the OAuth `name` field, which should be the Auth Next primary
   character name in your setup
 - username is also derived from that same value, but Discourse still normalizes it to a

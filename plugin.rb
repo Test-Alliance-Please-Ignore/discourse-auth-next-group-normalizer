@@ -23,6 +23,15 @@ module ::AuthNextGroupNormalizer
 			.uniq
 	end
 
+	def moderator_group_names
+		SiteSetting.auth_next_group_normalizer_moderator_groups
+			.to_s
+			.split("|")
+			.map { |name| normalize_group_name(name) }
+			.reject(&:blank?)
+			.uniq
+	end
+
 	def normalize_associated_group(group)
 		source_name = group[:name] || group["name"] || group[:id] || group["id"]
 		normalized_name = normalize_group_name(source_name)
@@ -73,6 +82,13 @@ module ::AuthNextGroupNormalizer
 
 		user.update!(admin: true)
 	end
+
+	def grant_moderator_if_needed(user, normalized_group_name)
+		return if user.blank? || user.moderator?
+		return unless moderator_group_names.include?(normalized_group_name)
+
+		user.update!(moderator: true)
+	end
 end
 
 after_initialize do
@@ -95,6 +111,7 @@ after_initialize do
 		normalized_groups.each do |group|
 			AuthNextGroupNormalizer.ensure_group_association(provider_name, group[:id])
 			AuthNextGroupNormalizer.grant_admin_if_needed(auth_result.user, group[:id])
+			AuthNextGroupNormalizer.grant_moderator_if_needed(auth_result.user, group[:id])
 		end
 
 		auth_result.associated_groups = normalized_groups
@@ -105,5 +122,6 @@ after_initialize do
 		next unless automatic
 
 		AuthNextGroupNormalizer.grant_admin_if_needed(user, group.name)
+		AuthNextGroupNormalizer.grant_moderator_if_needed(user, group.name)
 	end
 end
