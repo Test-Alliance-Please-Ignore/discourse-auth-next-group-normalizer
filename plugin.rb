@@ -49,6 +49,19 @@ module ::AuthNextGroupNormalizer
 		groups + [{ id: synthesized_group_name, name: synthesized_group_name }]
 	end
 
+	def should_strip_pink_texted_group?(user, groups)
+		return true if user&.admin?
+
+		groups.any? { |group| admin_group_names.include?(group[:id]) }
+	end
+
+	def strip_pink_texted_group_for_admin(user, groups)
+		return groups if groups.blank?
+		return groups unless should_strip_pink_texted_group?(user, groups)
+
+		groups.reject { |group| group[:id] == "pink-texted" }
+	end
+
 	def extra_data_value(data, key)
 		return nil if data.blank?
 
@@ -159,6 +172,7 @@ after_initialize do
 			end.uniq { |group| group[:id] }
 
 		normalized_groups = AuthNextGroupNormalizer.add_synthesized_groups(normalized_groups)
+		normalized_groups = AuthNextGroupNormalizer.strip_pink_texted_group_for_admin(auth_result.user, normalized_groups)
 
 		normalized_groups.each do |group|
 			AuthNextGroupNormalizer.ensure_group_association(provider_name, group[:id])
