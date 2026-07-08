@@ -10,6 +10,12 @@ enabled_site_setting :auth_next_group_normalizer_enabled
 module ::AuthNextGroupNormalizer
 	module_function
 
+	TEST_ALLIANCE_GROUP_NAME = "test-alliance"
+	TEST_ALLIANCE_PERMISSION = "urn:eve:alliance:test-alliance"
+	TEST_ALLIANCE_ROLE = "service_core:role:alliance-member"
+	TEST_ALLIANCE_ROLE_NAME = "ROLE_CORE_ALLIANCE_MEMBER"
+	PERMISSIONS_SCOPE = "permissions"
+
 	def normalize_group_name(name)
 		name.to_s.strip.downcase.gsub(/\s+/, "-").gsub(/-+/, "-")
 	end
@@ -40,13 +46,11 @@ module ::AuthNextGroupNormalizer
 		{ id: normalized_name, name: normalized_name }
 	end
 
-	def add_synthesized_groups(groups)
-		return groups if groups.blank?
+	def add_synthesized_groups(auth_result, groups)
+		return groups if groups.any? { |group| group[:id] == TEST_ALLIANCE_GROUP_NAME }
+		return groups unless profile_has_alliance_member_role?(auth_result)
 
-		synthesized_group_name = "test-alliance"
-		return groups if groups.any? { |group| group[:id] == synthesized_group_name }
-
-		groups + [{ id: synthesized_group_name, name: synthesized_group_name }]
+		groups + [{ id: TEST_ALLIANCE_GROUP_NAME, name: TEST_ALLIANCE_GROUP_NAME }]
 	end
 
 	def should_strip_pink_texted_group?(user, groups)
@@ -83,7 +87,41 @@ module ::AuthNextGroupNormalizer
 	end
 
 	def oauth_user_data(auth_result)
-		associated_account_extra_data(auth_result)
+		associated_account_extra_data(auth_result).merge(auth_result.extra_data || {})
+	end
+
+	def profile_has_alliance_member_role?(auth_result)
+		markers = [
+			TEST_ALLIANCE_PERMISSION,
+			TEST_ALLIANCE_ROLE,
+			TEST_ALLIANCE_ROLE_NAME,
+		]
+
+		%w[permissionUrns permissions roles].any? do |claim|
+			value_contains_any_string?(extra_data_value(oauth_user_data(auth_result), claim), markers)
+		end
+	end
+
+	def value_contains_any_string?(value, needles)
+		if value.is_a?(Hash)
+			value.any? do |key, item|
+				needles.include?(key.to_s) || value_contains_any_string?(item, needles)
+			end
+		elsif value.is_a?(Array)
+			value.any? { |item| value_contains_any_string?(item, needles) }
+		else
+			candidate = value.to_s.strip
+			candidate.present? && needles.include?(candidate)
+		end
+	end
+
+	def normalized_oauth2_scope(scope)
+		scope = scope.to_s.strip
+		return "" if scope.blank?
+
+		scopes = scope.split(/\s+/)
+		scopes << PERMISSIONS_SCOPE unless scopes.include?(PERMISSIONS_SCOPE)
+		scopes.uniq.join(" ")
 	end
 
 	def primary_character_from_extra_data(extra_data)
@@ -153,9 +191,20 @@ module ::AuthNextGroupNormalizer
 	end
 end
 
+module ::AuthNextGroupNormalizer
+	module SiteSettingScopeExtension
+		def oauth2_scope
+			AuthNextGroupNormalizer.normalized_oauth2_scope(super)
+		end
+	end
+end
+
 after_initialize do
-	DiscoursePluginRegistry.register_oauth2_basic_additional_json_path("mainCharacterId", self)
-	DiscoursePluginRegistry.register_oauth2_basic_additional_json_path("characters", self)
+	SiteSetting.singleton_class.prepend(AuthNextGroupNormalizer::SiteSettingScopeExtension)
+
+	%w[mainCharacterId characters permissionUrns permissions roles].each do |path|
+		DiscoursePluginRegistry.register_oauth2_basic_additional_json_path(path, self)
+	end
 
 	DiscourseEvent.on(:after_auth) do |authenticator, auth_result, _session, _cookies, _request|
 		next unless SiteSetting.auth_next_group_normalizer_enabled
@@ -163,15 +212,14 @@ after_initialize do
 		next if auth_result.blank? || auth_result.failed?
 
 		AuthNextGroupNormalizer.sync_identity_from_primary_character(auth_result)
-		next if auth_result.associated_groups.blank?
 
 		provider_name = auth_result.extra_data&.[](:provider) || authenticator.name
 		normalized_groups =
-			auth_result.associated_groups.filter_map do |group|
+			Array(auth_result.associated_groups).filter_map do |group|
 				AuthNextGroupNormalizer.normalize_associated_group(group)
 			end.uniq { |group| group[:id] }
 
-		normalized_groups = AuthNextGroupNormalizer.add_synthesized_groups(normalized_groups)
+		normalized_groups = AuthNextGroupNormalizer.add_synthesized_groups(auth_result, normalized_groups)
 		normalized_groups = AuthNextGroupNormalizer.strip_pink_texted_group_for_admin(auth_result.user, normalized_groups)
 
 		normalized_groups.each do |group|

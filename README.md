@@ -13,7 +13,8 @@ Behavior:
 - lowercases the name
 - replaces runs of whitespace with `-`
 - collapses repeated `-`
-- synthesizes `test-alliance` whenever the normalized OAuth group list is non-empty
+- synthesizes `test-alliance` when the OAuth profile includes the Auth Next alliance
+  permission marker `urn:eve:alliance:test-alliance`
 - if a Discourse group already exists with the same normalized name, automatically links it
   to the matching `oauth2_basic` associated group
 - grants `admin` to users who land in configured admin groups
@@ -70,6 +71,9 @@ Keep your normal `discourse-oauth2-basic` setup, including:
 oauth2_json_groups_path = groups
 ```
 
+When `oauth2_scope` is configured, this plugin appends `permissions` automatically so the
+Auth Next permissions payload is available during login.
+
 This plugin runs on the `after_auth` hook and rewrites `auth_result.associated_groups`
 before Discourse applies group sync.
 
@@ -79,9 +83,8 @@ without a separate Rails-console step.
 
 It does not create Discourse groups automatically.
 
-If the OAuth provider returns no groups for a user, the synthesized `test-alliance` group is
-not added, and Discourse group sync will remove the associated membership on the next OAuth
-login.
+If the OAuth profile does not include `urn:eve:alliance:test-alliance` in its permissions or
+related role claims, the synthesized `test-alliance` group is not added.
 
 ## Site setting
 
