@@ -150,13 +150,8 @@ module ::AuthNextGroupNormalizer
 		auth_result.name = primary_character_name
 		auth_result.overrides_name = true
 
-		return unless auth_result.user.blank?
-
-		if auth_result.username.to_s.strip.blank?
-			auth_result.username = primary_character_name
-		end
-
-		auth_result.overrides_username = auth_result.username.to_s.strip.present?
+		auth_result.username = primary_character_name
+		auth_result.overrides_username = true
 	end
 
 	def ensure_group_association(provider_name, normalized_name)
